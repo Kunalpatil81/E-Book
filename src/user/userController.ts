@@ -29,19 +29,48 @@ const createUser = asyncHandler(
             password: hashedPassword,
         });
 
-        if(!user) {
-            const error = createHttpError(500, "User registration failed please try again")
-            return next(error)
+        if (!user) {
+            const error = createHttpError(
+                500,
+                "User registration failed please try again"
+            );
+            return next(error);
         }
 
         const token = sign({ id: user._id }, config.jwtSecret as string, {
             expiresIn: "7d",
         });
 
-        return res.status(201).json({success: "User register successfully" });
+        return res.status(201).json({ success: "User register successfully" });
     }
 );
 
+const loginUser = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { email, password } = req.body;
 
+        if (!email || !password) {
+            return next(createHttpError(400, "All feilds are required"));
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return next(createHttpError(400, "user not found"));
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return next(createHttpError(400, "password is incorrect"));
+        }
+
+        const token = sign({ id: user._id }, config.jwtSecret as string, {
+            expiresIn: "7d",
+        });
+
+        return res.status(200).json({ success: "user login successfully" });
+    }
+);
 
 export { createUser, loginUser };
