@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { Request, Response, NextFunction } from "express";
 import cloudinary from "../config/cloudinary";
 import { Book } from "./bookModel";
-import fs from 'node:fs'
+import fs from "node:fs";
 import createHttpError from "http-errors";
 import { AuthRequest } from "../middleware/authenticate";
 
@@ -49,7 +49,7 @@ const createBook = asyncHandler(
 
         // console.log("bookFileResult", bookFilePathUploadResult);
         // console.log("uploadresults", uploadResult);
-        const _req = req as AuthRequest
+        const _req = req as AuthRequest;
 
         const newBook = await Book.create({
             title,
@@ -59,15 +59,118 @@ const createBook = asyncHandler(
             file: bookFilePathUploadResult.secure_url,
         });
 
-        if(!newBook){
-            return next(createHttpError(500, "failed to create new book"))
+        if (!newBook) {
+            return next(createHttpError(500, "failed to create new book"));
         }
 
-        await fs.promises.unlink(filePath)
-        await fs.promises.unlink(bookFilePath)
+        await fs.promises.unlink(filePath);
+        await fs.promises.unlink(bookFilePath);
 
-        res.status(201).json({id: newBook._id, message: 'new book created successfully'});
+        res.status(201).json({
+            id: newBook._id,
+            message: "new book created successfully",
+        });
     }
 );
 
-export { createBook };
+const updateBook = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { title, description, genre } = req.body;
+        const bookId = req.params.bookId;
+
+        if(!bookId){
+            return next(createHttpError(400, "BookId is required"))
+        }
+
+        const book = await Book.findOne({ _id: bookId });
+
+        if (!book) {
+            return next(createHttpError(404, "Book not found"));
+        }
+
+        // Check access
+        const _req = req as AuthRequest;
+        if (book.author.toString() !== _req.userId) {
+            return next(
+                createHttpError(403, "You can not authorized to update others book.")
+            );
+        }
+
+        // check if image field is exists.
+
+        const files = req.files as {
+            [fieldname: string]: Express.Multer.File[];
+        };
+
+        let completeCoverImage = "";
+
+        if (files.coverImage) {
+            const filename = files.coverImage[0].filename;
+            const converMimeType = files.coverImage[0].mimetype
+                .split("/")
+                .at(-1);
+
+            // send files to cloudinary
+            const filePath = path.resolve(
+                __dirname,
+                "../../public/data/uploads/" + filename
+            );
+
+            completeCoverImage = filename;
+
+            const uploadResult = await cloudinary.uploader.upload(filePath, {
+                filename_override: completeCoverImage,
+                folder: "book-covers",
+                format: converMimeType,
+            });
+
+            completeCoverImage = uploadResult.secure_url;
+            await fs.promises.unlink(filePath);
+        }
+
+        // check if file field is exists.
+        let completeFileName = "";
+        if (files.file) {
+            const bookFilePath = path.resolve(
+                __dirname,
+                "../../public/data/uploads/" + files.file[0].filename
+            );
+
+            const bookFileName = files.file[0].filename;
+            completeFileName = bookFileName;
+
+            const uploadResultPdf = await cloudinary.uploader.upload(
+                bookFilePath,
+                {
+                    resource_type: "raw",
+                    filename_override: completeFileName,
+                    folder: "book-pdfs",
+                    format: "pdf",
+                }
+            );
+
+            completeFileName = uploadResultPdf.secure_url;
+            await fs.promises.unlink(bookFilePath);
+        }
+
+        const updatedBook = await Book.findOneAndUpdate(
+            {
+                _id: bookId,
+            },
+            {
+                title: title,
+                description: description,
+                genre: genre,
+                coverImage: completeCoverImage
+                    ? completeCoverImage
+                    : book.coverImage,
+                file: completeFileName ? completeFileName : book.file,
+            },
+            { new: true }
+        );
+
+        res.status(200).json({message: 'your book is updated successfully',updatedBook});
+    }
+);
+
+export { createBook, updateBook };
