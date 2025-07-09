@@ -69,6 +69,8 @@ const loginUser = asyncHandler(
             expiresIn: "7d",
         });
 
+        // console.log('token', token)
+
         return res.status(200).json({ success: "user login successfully" });
     }
 );
