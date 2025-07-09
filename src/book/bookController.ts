@@ -2,9 +2,13 @@ import path from "node:path";
 import { asyncHandler } from "../utils/asyncHandler";
 import { Request, Response, NextFunction } from "express";
 import cloudinary from "../config/cloudinary";
+import { Book } from "./bookModel";
+import fs from 'node:fs'
+import createHttpError from "http-errors";
 
 const createBook = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
+        const { title, genre } = req.body;
         const files = req.files as {
             [fieldname: string]: Express.Multer.File[];
         };
@@ -42,10 +46,25 @@ const createBook = asyncHandler(
             }
         );
 
-        console.log('bookFileResult', bookFilePathUploadResult)
-
+        console.log("bookFileResult", bookFilePathUploadResult);
         console.log("uploadresults", uploadResult);
-        res.json({});
+
+        const newBook = await Book.create({
+            title,
+            genre,
+            author: "686cf7df8ec7796f1e6db97e",
+            coverImage: uploadResult.secure_url,
+            file: bookFilePathUploadResult.secure_url,
+        });
+
+        if(!newBook){
+            return next(createHttpError(500, "failed to create new book"))
+        }
+
+        await fs.promises.unlink(filePath)
+        await fs.promises.unlink(bookFilePath)
+
+        res.status(201).json({id: newBook._id, message: 'new book created successfully'});
     }
 );
 
