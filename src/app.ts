@@ -8,6 +8,8 @@ const app = express();
 
 app.use(express.json());
 
+
+
 app.get("/", (req, res, next) => {
     const error = createHttpError(400, "something went wrong");
     throw error;

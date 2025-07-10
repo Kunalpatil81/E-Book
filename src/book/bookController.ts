@@ -1,7 +1,7 @@
 import path from "node:path";
 import { asyncHandler } from "../utils/asyncHandler";
 import { Request, Response, NextFunction } from "express";
-import cloudinary from "../config/cloudinary";
+import {cloudinary, uploadOnCloudinary} from "../config/cloudinary";
 import { Book } from "./bookModel";
 import fs from "node:fs";
 import createHttpError from "http-errors";
@@ -13,39 +13,48 @@ const createBook = asyncHandler(
         const files = req.files as {
             [fieldname: string]: Express.Multer.File[];
         };
-        // 'application/pdf'
-        const coverImageMimeType = files.coverImage[0].mimetype
-            .split("/")
-            .at(-1);
-        const fileName = files.coverImage[0].filename;
-        const filePath = path.resolve(
-            __dirname,
-            "../../public/data/uploads",
-            fileName
-        );
+        
+        const coverImageLocalPath = files?.coverImage[0]?.path
+        const uploadResult = await uploadOnCloudinary(coverImageLocalPath)
 
-        const uploadResult = await cloudinary.uploader.upload(filePath, {
-            filename_override: fileName,
-            folder: "book-covers",
-            format: coverImageMimeType,
-        });
+        const fileLocalPath = files?.file[0]?.path
+        const bookFilePathUploadResult = await uploadOnCloudinary(fileLocalPath)
 
-        const bookFileName = files.file[0].filename;
-        const bookFilePath = path.resolve(
-            __dirname,
-            "../../public/data/uploads",
-            bookFileName
-        );
+        // console.log(files)
+        // // 'application/pdf'
+        // const coverImageMimeType = files.coverImage[0].mimetype
+        //     .split("/")
+        //     .at(-1);
+        // const fileName = files.coverImage[0].filename;
+        // const filePath = path.resolve(
+        //     __dirname,
+        //     "../../public/data/uploads",
+        //     fileName
+        // );
 
-        const bookFilePathUploadResult = await cloudinary.uploader.upload(
-            bookFilePath,
-            {
-                resource_type: "raw",
-                filename_override: bookFileName,
-                folder: "book-pdfs",
-                format: "pdf",
-            }
-        );
+
+        // const uploadResult = await cloudinary.uploader.upload(filePath, {
+        //     filename_override: fileName,
+        //     folder: "book-covers",
+        //     format: coverImageMimeType,
+        // });
+
+        // const bookFileName = files.file[0].filename;
+        // const bookFilePath = path.resolve(
+        //     __dirname,
+        //     "../../public/data/uploads",
+        //     bookFileName
+        // );
+
+        // const bookFilePathUploadResult = await cloudinary.uploader.upload(
+        //     bookFilePath,
+        //     {
+        //         resource_type: "raw",
+        //         filename_override: bookFileName,
+        //         folder: "book-pdfs",
+        //         format: "pdf",
+        //     }
+        // );
 
         // console.log("bookFileResult", bookFilePathUploadResult);
         // console.log("uploadresults", uploadResult);
@@ -55,16 +64,18 @@ const createBook = asyncHandler(
             title,
             genre,
             author: _req.userId,
-            coverImage: uploadResult.secure_url,
-            file: bookFilePathUploadResult.secure_url,
+            coverImage: uploadResult?.secure_url,
+            file: bookFilePathUploadResult?.secure_url,
         });
+
+        // console.log(_req.userId)
 
         if (!newBook) {
             return next(createHttpError(500, "failed to create new book"));
         }
 
-        await fs.promises.unlink(filePath);
-        await fs.promises.unlink(bookFilePath);
+        // await fs.promises.unlink(filePath);
+        // await fs.promises.unlink(bookFilePath);
 
         res.status(201).json({
             id: newBook._id,
@@ -76,13 +87,15 @@ const createBook = asyncHandler(
 const updateBook = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
         const { title, description, genre } = req.body;
-        const bookId = req.params.bookId;
+        const {bookId} = req.params;
 
         if (!bookId) {
             return next(createHttpError(400, "BookId is required"));
         }
 
-        const book = await Book.findOne({ _id: bookId });
+        const book = await Book.findById(bookId);
+
+        // console.log(book)
 
         if (!book) {
             return next(createHttpError(404, "Book not found"));

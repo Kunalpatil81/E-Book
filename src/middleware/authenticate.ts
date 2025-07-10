@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import createHttpError from "http-errors";
-import Jwt from "jsonwebtoken";
+import Jwt, { JwtPayload } from "jsonwebtoken";
 import { config } from "../config/config";
 import { asyncHandler } from "../utils/asyncHandler";
 
@@ -16,15 +16,16 @@ const authenticate = asyncHandler((req: Request, res: Response, next: NextFuncti
 
     const parsedToken = token.split(" ")[1];
 
-    const decoded = Jwt.verify(parsedToken, config.jwtSecret as string);
+    const decoded = Jwt.verify(parsedToken, config.jwtSecret as string) as unknown as JwtPayload;
 
     if(!decoded) {
         return next(createHttpError(400, "Token Expired...!"))
     }
-    console.log("decoded", decoded);
+    // console.log("decoded", decoded);
 
     const _req = req as AuthRequest;
-    _req.userId = decoded.sub as string;
+    _req.userId = decoded.id
+    console.log(_req.userId)
     next();
 }) 
 
