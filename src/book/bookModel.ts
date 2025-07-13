@@ -7,6 +7,7 @@ export interface Book {
     author: User;
     genre: string;
     coverImage: string;
+    description: string
     file: string;
     createdAt: Date;
     updatedAt: Date;
@@ -18,13 +19,16 @@ const bookSchema = new Schema<Book>(
             type: String,
             required: true,
         },
+        description:{
+            type: String
+        },
         genre: {
             type: String,
             required: true,
         },
         author: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
+            ref: "User",
         },
         coverImage: {
             type: String,
@@ -40,4 +44,4 @@ const bookSchema = new Schema<Book>(
     }
 );
 
-export const Book = mongoose.model("Book", bookSchema)
+export const Book = mongoose.model("Book", bookSchema);

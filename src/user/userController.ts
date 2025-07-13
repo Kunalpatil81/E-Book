@@ -41,6 +41,8 @@ const createUser = asyncHandler(
             expiresIn: "7d",
         });
 
+        // console.log("token", token)
+
         return res.status(201).json({ success: "User register successfully" });
     }
 );
@@ -69,7 +71,7 @@ const loginUser = asyncHandler(
             expiresIn: "7d",
         });
 
-        // console.log('token', token)
+        console.log('token', token)
 
         return res.status(200).json({ success: "user login successfully" });
     }
